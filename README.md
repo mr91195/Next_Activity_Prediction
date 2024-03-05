@@ -2,7 +2,7 @@
 Internship Project
 
 
- # Guida d'utilizzo
+ # Guida d'uso
  ### Tirocinio Process Mining a.a 2022/2023
  #### Marco Romanelli
  
@@ -15,3 +15,8 @@ Internship Project
 
  ## Avvio di NewBig
  Eseguire `index.py` 
+
+
+
+ ## Guida d'uso con meno GUI, sostituite quasi completamente con CLI
+ link: https://destiny-flavor-300.notion.site/Documentation-9eb342ef8367479ea45f4434fe44302d?pvs=4
