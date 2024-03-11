@@ -1,90 +1,36 @@
-''' BIG algorithm server file'''
-
-#   **BIG**
-
-#get xes file for event log
+# BIG_algorithm.py
 import pandas as pd
 from scipy import stats
 import numpy as np
 import pm4py
-
-import os
 import config #arguments
-#import GeneralPreprocessing as gp
 
 config.clean_directories() #pulizia delle directory
 args = config.load()
 
 
-#-----hardcoded-----#
-# the path to your csv file directory
-# mycsvdir = args.data_dir
-# #included features
-# attrlist=args.attr_list
-# #-----hardcoded-----#
 
-# p2plog=gp.load_csv(attrlist,mycsvdir)
-# p2plog=gp.basic(p2plog, attrlist)
-# p2plog=gp.outlier_removal(p2plog, attrlist)
-# p2plog=gp.add_dummies(p2plog, attrlist)
-# p2plog=gp.normalize(p2plog,attrlist)
-# toolate=p2plog['Days too late']
-# p2plog=p2plog.drop(['Days too late'], axis=1)
-# p2plog['Days too late']=toolate
-# p2plog=gp.get_subset(p2plog, args.nrcases) #selects randomly 216008 cases (maybe need to set a seed so it selects the same cases everytime)
-# p2plog.to_csv('./datasets/Subset4000pervariant.csv')
+# Leggi nameXes dal file
+try:
+    with open('prompt_var.txt', 'r') as f:
+        nameXes = f.read().strip()
+    print('nameXes letto dal file.txt : ', nameXes)
+except FileNotFoundError:
+    print("File 'prompt_var.txt' non trovato.")
 
-#import subset
-#p2plog=pd.read_csv(f"{args.data_dir}/{args.csv_name}",usecols=([i for i in range(1,68)]))
+if nameXes == None:
+  #path for .xes file
+  nameXes = args.xes_name
+  print('nameXes letto dal file config')
 
-# import matplotlib.pyplot as plt 
-# plt.figure(figsize=(20,5))
-# plt.title('Histogram of target values in subset 216008 cases')
-# plt.xlabel('target values')
-# plt.ylabel('Count')
-# plt.grid(axis='y', alpha=0.75) 
-# n, bins, patches=plt.hist(x=p2plog['Days too late'], bins='auto')
-# plt.xticks(np.arange(-70,70,2))
-# maxfreq=n.max()
-# plt.ylim(ymax=np.ceil(maxfreq/10)*10 if maxfreq%10 else maxfreq+10)
-# plt.show()
 
-''' code to make target/feature frame 
-#log_subset=pm4py.read_xes("./Input/xes/"+args.xes_name)
-# log_subset=pm4py.read_xes("./Input/xes/Subset4000pervariant_target_startend.xes")
-# log_subset_frame=pm4py.convert_to_dataframe(log_subset)
-# targetframe=log_subset_frame[['case:concept:name','concept:name','time:timestamp','Days too late']]   
-# dtl=targetframe.groupby(['case:concept:name'],sort=False).agg(daystoolate=pd.NamedAgg(column='Days too late', aggfunc=max))
-# time_order=targetframe.groupby(['case:concept:name'],sort=False).agg(daystoolate=pd.NamedAgg(column='time:timestamp', aggfunc=max))
-# targetframe2=targetframe.copy()
-# targetframe2['Days too late'] = targetframe2.groupby(['case:concept:name'])['Days too late'].apply(lambda x: x.fillna(x.max()))   
-# targetframe2['time:timestamp']=pd.to_datetime(targetframe2['time:timestamp'], format='%Y-%m-%dT%H:%M:%S',utc=True)
-# targetframe2.to_csv('targetframe.csv') 
-
-# featureframe=log_subset_frame[['case:concept:name', 'concept:name', 'time:timestamp', 'Days too late', 'Time since last event', 'Time since case start', 'Time since midnight']]   
-# featureframe.to_csv('featureframe.csv')
-##export log to xes file
-# from pm4py.objects.log.exporter.xes import exporter as xes_exporter
-# xes_exporter.apply(log_new, 'Testfiles/NNs/Andreas NN/preprocessing/Input/xes/dgcnn_log_sample.xes')
-'''
-
-#code to make petri net
-#import entire log
-#make petri net
-
-####################_______________MOD_B_____________############################
-#path for .xes file
-nameXes = args.xes_name
-log = "./Input/xes/%s"  % (nameXes)
-log_file = "./Input/xes/%s"  % (nameXes)
+log_file = "./Input/xes/%s.xes"  % (nameXes)
 #need to have the petri net
 net_file = args.net_name
 #path for .csv file
 path_csv = './Input/csv/'+args.csv_name
 # Import .xes file
 log_total = pm4py.read_xes(log_file)
-
-#log_total_frame= pm4py.convert_to_dataframe(log_total)
 
 #This function convert the .xes file to .csv file
 def convert_xes_to_csv():
@@ -106,12 +52,6 @@ from pm4py.algo.discovery.inductive import algorithm as inductive_miner
 #from pm4py.visualization.petrinet import visualizer as pn_visualizer
 net, initial_marking, final_marking = inductive_miner.apply(log_total, variant=inductive_miner.Variants.IMf, parameters={inductive_miner.Variants.IMf.value.Parameters.NOISE_THRESHOLD:0.4})
 
-#gviz = pn_visualizer.apply(net, initial_marking, final_marking,
-#                            variant=pn_visualizer.Variants.FREQUENCY, 
-#                            log=log_total)
-# pn_visualizer.view(gviz)
-
-############################___________MOD_B___________#################################
 pn_first = f'{net_file}/dgcnn_log_sample_net.pnml'
 pm4py.write_pnml(net, initial_marking,final_marking, pn_first)
 net, initial_marking, final_marking = pm4py.read_pnml(pn_first)
@@ -120,13 +60,6 @@ net, initial_marking, final_marking = pm4py.read_pnml(pn_first)
 transitions = net.transitions
 arcs=net.arcs
 places=net.places
-#for transition in transitions:
-#     print("\nTrans: "+transition.name)
-
-# for place in places:
-#     print("\nPLACE: "+place.name)
-#     for arc in place.in_arcs:
-#         print(arc.source.name, arc.source.label)
 
 from pm4py.objects.petri_net.obj import PetriNet, Marking
 
@@ -138,28 +71,6 @@ net.transitions.add(start)
 net.transitions.add(end)
 net.places.add(p_start)
 net.places.add(p_end)
-'''
-from pm4py.objects.petri_net.utils import petri_utils
-# #start
-petri_utils.add_arc_from_to(list(places)[0], start, net)
-petri_utils.add_arc_from_to(start, p_start,net)
-petri_utils.add_arc_from_to(p_start,list(transitions)[5],net)
-petri_utils.remove_arc(net, list(arcs)[48])
-# #end
-petri_utils.add_arc_from_to(end, list(places)[16], net)
-petri_utils.add_arc_from_to(p_end, end, net)
-petri_utils.add_arc_from_to(list(transitions)[20], p_end, net)
-petri_utils.remove_arc(net, list(arcs)[1])
-
-# list(places)[0]
-# for i in range(len(places)):
-#     print('place: ', i, list(places)[i])
-# for i in range(len(arcs)):
-#     print('arc: ', i, list(arcs)[i]) 
-# for i in range(len(transitions)):
-#     print('tr: ', i, list(transitions)[i])   
-'''
-############################___________MOD_B___________#################################
 pn_startend = f'{net_file}/dgcnn_log_sample_net_startend.pnml'
 pm4py.write_pnml(net, initial_marking,final_marking, pn_startend)
 
@@ -167,18 +78,6 @@ pm4py.write_pnml(net, initial_marking,final_marking, pn_startend)
 ''' Algorithm! '''
 
 from pm4py.algo.discovery.footprints import algorithm as footprints_discovery
-
-
-
-######################## MODIFICA findCausalRelationships ****MR*** ##################################################
-
-'''
-Precedente funzione, sostituita con la funzione presente nel file yupiter _MR_
-def findCausalRelationships(net, im, fm):
-  fp_net = footprints_discovery.apply(net, im, fm)
-  return list(fp_net.get('sequence'))
-'''
-
 
 def findCausalRelationships(net):
     dict_succ=find_successors(net)
@@ -208,8 +107,6 @@ def find_successors_of_transition(net, transition):
 
 def find_successors(net):
     return {transition: find_successors_of_transition(net, transition) for transition in net.transitions if transition.label is not None}
-
-# #Pick Aligned Trace
 
 # Questa funzione riceve in input la traccia, la rete di petri, il marking iniziale e finale. restituisce in output due liste, una contenente le tracce allineate al modello, l'altra con le tracce allineata rispetto al log. 
 

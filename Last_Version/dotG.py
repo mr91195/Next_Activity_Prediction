@@ -1,7 +1,6 @@
 import gc
 import os
 from config import load
-import BIG_algorithm as big
 from pm4py.util import xes_constants as xes
 import pm4py
 from pm4py.objects.log import obj as log_instance
@@ -156,7 +155,29 @@ def add_info(path_w, path_r, log):
 
 from pm4py.objects.log.importer.xes import importer as xes_importer
 
-logs = [big.log_total] # per ora riprendiamo log_total presente in BIG_algorithm.py
+
+# Leggi nameXes dal file
+try:
+    with open('prompt_var.txt', 'r') as f:
+        nameXes = f.read().strip()
+    print('nameXes letto dal file.txt : ', nameXes)
+except FileNotFoundError:
+    print("File 'prompt_var.txt' non trovato.")
+
+if nameXes == None:
+  #path for .xes file
+  nameXes = args.xes_name
+  print('nameXes letto dal file config')
+
+log_file = "./Input/xes/%s.xes"  % (nameXes)
+print(log_file)
+#need to have the petri net
+net_file = args.net_name
+#path for .csv file
+path_csv = './Input/csv/'+args.csv_name
+# Import .xes file
+log_total = pm4py.read_xes(log_file)
+logs = [log_total]
 
 # dynamic call of add_info function based on previous logs list
 
@@ -342,8 +363,20 @@ print_file.flush()
 # 
 # 
 # # *********************************************************************************************
+#This function convert the .xes file to .csv file
+def convert_xes_to_csv():
+    df_xes = pm4py.convert_to_dataframe(log_total) #convert il file .xes in un dataframe
+    df_xes = df_xes.rename(columns={'case:concept:name': 'Case ID', 'time:timestamp': 'Timestamp'})
+    df_xes.drop(['Activity'], errors='ignore', axis=1, inplace=True)
+    df_xes = df_xes.rename(columns={'concept:name': 'Activity'})
+    #df_xes = df_xes.rename(columns=lambda x: x.replace('case:', ''))
+    column_sort = ['Case ID', 'Activity', 'Timestamp'] + [col for col in df_xes.columns if col not in ['Case ID', 'Activity', 'Timestamp']]
+    df_xes = df_xes[column_sort]
+    df_xes.to_csv(path_csv, index=False)
+    return df_xes
 
-targetframe = big.convert_xes_to_csv()
+
+targetframe = convert_xes_to_csv()
 col_name = 'Case ID'
 if col_name in targetframe.columns:
     targetframe[col_name] = targetframe[col_name].astype(str)
@@ -394,7 +427,7 @@ del_col_file.flush()
 # #
 
 
-from GUI.GUI_features import SimpleGui as SG
+from GUI_features import SimpleGui as SG
 
 clm=targetframe.columns.values
 
@@ -565,7 +598,7 @@ def get_gDataFrame():
   df = g_dataframe
   df['e_v'] = df['e_v'].replace('\nXP', 'XP')
   df = df.iloc[:,:-1]
-  return df, attNumerici, attCategorici, opzione_scelta, train_rete
+  return df, attNumerici, attCategorici, opzione_scelta
 
 
 

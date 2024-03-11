@@ -1,0 +1,16 @@
+ Accuracy  F1_Score
+ 0.805687  0.719229
+ 0.684772  0.562878
+ 0.895212  0.883599
+ 0.975000  0.968133
+
+Accuracy All: 0.8426
+F1 Score All: 0.7852
+
+
+Occurrences Count:
+Num_Prefix
+4    2214
+5    2000
+3    1970
+2    1899
