@@ -490,20 +490,20 @@ if not os.path.exists("./Prefix"):
     os.mkdir("./Prefix")
 
 class TraceDataset(InMemoryDataset):
- 
+
     def __init__(self,  transform=None, pre_transform=None):
         super(TraceDataset, self).__init__(PATH, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
- 
- 
- 
+
+
+
     @property
     def processed_file_names(self):
         # return ['andreaa_bpi12w_par.pt']
-         return [file_name+'_par.pt']
- 
- 
- 
+        return [file_name+'_par.pt']
+
+
+
     def process(self):
         print('--------------------------------------------------------')
         print(f"PATH è impostato a: {PATH}")
@@ -558,12 +558,12 @@ class TraceDataset(InMemoryDataset):
 
                 """
                 x1.append([*attr[G.nodes[i]['attrib1']],
-                           *G.nodes[i]['attrib2'], #il trick serve per questa che è già una lista e così le concateni tutte al volo
-                           *[G.nodes[i]['attrib3']],
-                           *[G.nodes[i]['attrib4']],
-                           *[G.nodes[i]['attrib5']],
-                           *[G.nodes[i]['attrib6']] ]
-                           )                          #aggiunge alla lista il one-hot-encoder (lista) associato all'attributo di quel nodo (activity)
+                        *G.nodes[i]['attrib2'], #il trick serve per questa che è già una lista e così le concateni tutte al volo
+                        *[G.nodes[i]['attrib3']],
+                        *[G.nodes[i]['attrib4']],
+                        *[G.nodes[i]['attrib5']],
+                        *[G.nodes[i]['attrib6']] ]
+                        )                          #aggiunge alla lista il one-hot-encoder (lista) associato all'attributo di quel nodo (activity)
                 """
                 
             """
@@ -593,7 +593,7 @@ class TraceDataset(InMemoryDataset):
             y_par = torch.tensor([target_par[G.graph['target_par']]])             #assegna il valore numerico all'attività da predirre per quel sottografo secondo logica par
 
             #print(y_par)
- 
+
             #x=tensore attributi nodi sottografo corrente, 
             #edge_index=descrive collegamenti tra nodi, 
             #y=tensore attività da predirre (etichetta) 
@@ -622,7 +622,7 @@ class TraceDataset(InMemoryDataset):
             # print('Num Prefix : ',max_value+1)
 
             data_list.append(data)                                                #crea una lista contenente gli elementi del dataset
- 
+
         # print("oh")
         # print(data_list)
         data, slices = self.collate(data_list)
@@ -633,8 +633,8 @@ class TraceDataset(InMemoryDataset):
         unique_elements, counts = np.unique(yy, return_counts=True)
 
         # Stampare gli elementi unici e le frequenze
-        for element, count in zip(unique_elements, counts):
-            print(f"Label {element}: {count} volte")
+        # for element, count in zip(unique_elements, counts):
+        #     print(f"Label {element}: {count} volte")
         '''
         
         print(data.y)

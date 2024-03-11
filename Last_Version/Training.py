@@ -7,17 +7,52 @@
 # OR USE THE COMMAND LINE :
 # 
 # python -m cudf.pandas modificata_dgcnn_70_30_dataset_parallelo_Manou_server.py
+from CLI_path_dataset import select_paths_dataset_cli
+import os
+dataset_path, path_txt_par, path_txt_std = select_paths_dataset_cli()  # Seleziona i percorsi dei file del dataset
 
+# Verifica il tipo di file
+_, file_extension_dataset = os.path.splitext(dataset_path)
+_, file_extension_txt_par = os.path.splitext(path_txt_par)
+_, file_extension_txt_std= os.path.splitext(path_txt_std)
 
+target_path_dataset = "./Output/dataset/processed/complete_par.pt"
+target_path_txt_par = "./Output/dataset/target_par.txt"
+target_path_txt_std = "./Output/dataset/target_std.txt"
+
+# Verifica se l'estensione è '.pt'
+if (file_extension_dataset == '.pt') & (file_extension_txt_par == '.txt') & (file_extension_txt_std == '.txt') :
+    if not (dataset_path==target_path_dataset) & (path_txt_par==target_path_txt_par) & (path_txt_std==target_path_txt_std):
+        try:
+            # Copia il file
+            # to...
+            target_path = "./Output/dataset/processed/complete_par.pt"
+            shutil.copyfile(dataset_path, target_path)
+
+            # to...
+            target_path = "./Output/dataset/target_par.txt"
+            shutil.copyfile(path_txt_par, target_path)
+
+            # to...
+            target_path = "./Output/dataset/target_std.txt"
+            shutil.copyfile(path_txt_std, target_path)
+
+            print("File copiati con successo.")
+        except PermissionError:
+            print("Errore di permesso: non è possibile scrivere nel percorso specificato.")
+        except FileNotFoundError:
+            print("Errore: la directory di destinazione non esiste.")   
+        except Exception as e:
+            print(f"Si è verificato un errore: {e}")
+    else:
+        print("Files di default presi da ./Output/dataset.")
+        
 
 
 from sklearn.metrics import accuracy_score, f1_score
 import torch
 import pandas as pd
 import numpy as np
-#import networkx as nx
-#from torch_geometric.data import InMemoryDataset, Data
-import os
 import config
 import torch.nn.functional as F
 from torch.nn import Linear, Conv1d
@@ -28,10 +63,9 @@ from torch_geometric import utils
 import matplotlib.pyplot as plt
 plt.ioff() 
 import itertools
-from creazione_dataset_next_activity import TraceDataset
+from Upload_Dataset import TraceDataset
 import time
 import random
-import os
 import shutil
 
 
@@ -262,7 +296,7 @@ def selectParameters():
    
     return prefix_occurrences
 
-from GUI.CLI_option_train import select_range_and_split_cli
+from CLI_option_train import select_range_and_split_cli
 min_prefissi_selezionato, max_prefissi_selezionato, percentuale_split, search_grid = select_range_and_split_cli(selectParameters())
 print("Valori selezionati:")
 print(f"Min prefissi: {min_prefissi_selezionato}")
