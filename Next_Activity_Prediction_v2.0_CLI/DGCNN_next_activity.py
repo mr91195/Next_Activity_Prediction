@@ -262,7 +262,7 @@ def selectParameters():
    
     return prefix_occurrences
 
-from GUI.CLI_option_train import select_range_and_split_cli
+from CLI.CLI_option_train import select_range_and_split_cli
 min_prefissi_selezionato, max_prefissi_selezionato, percentuale_split, search_grid = select_range_and_split_cli(selectParameters())
 print("Valori selezionati:")
 print(f"Min prefissi: {min_prefissi_selezionato}")

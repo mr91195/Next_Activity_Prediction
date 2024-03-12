@@ -388,13 +388,13 @@ del_col_file.flush()
 # 
 # 
 # 
-#                 # GUI
+#                 # cli
 #             
 # 
 # #
 
 
-from GUI.GUI_features import SimpleGui as SG
+from CLI.CLI_features import SimpleCli as SG
 
 clm=targetframe.columns.values
 

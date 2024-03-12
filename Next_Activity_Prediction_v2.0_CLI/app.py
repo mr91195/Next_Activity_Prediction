@@ -1,5 +1,5 @@
 # Importa la funzione choose_action_cli dal modulo CLI_home nella cartella GUI
-from GUI.CLI_home import choose_action_cli
+from CLI.CLI_home import choose_action_cli
 
 ######################################  FUNCTIONS UTILS     ##########################################################
 
@@ -17,7 +17,7 @@ def preProcess_data():
 # FUNZIONE PER L'ALLENAMENTO DELLA RETE PARTENDO DAL DATASET GIA PREPROCESSATO
 def postProcess_data():
     # Scelta del file xes da processare
-    from GUI.CLI_path_dataset import select_paths_dataset_cli
+    from CLI.CLI_path_dataset import select_paths_dataset_cli
     import shutil
     import os
 

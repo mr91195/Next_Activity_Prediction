@@ -427,7 +427,7 @@ del_col_file.flush()
 # #
 
 
-from GUI_features import SimpleGui as SG
+from CLI_features import SimpleCli as SG
 
 clm=targetframe.columns.values
 
