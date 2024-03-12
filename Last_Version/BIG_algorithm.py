@@ -650,8 +650,7 @@ import csv
 
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
-
-def BIG(net_path, log_path, tr_start=0, tr_end=None, view=False, sort_labels=False):
+def BIG(net_path= pn_startend, log_path = log_file, tr_start=0, tr_end=None, view=False, sort_labels=False):
   splits = log_path.split('/')
   name = splits[-1].split(".")[0]
 
@@ -826,4 +825,4 @@ def BIG(net_path, log_path, tr_start=0, tr_end=None, view=False, sort_labels=Fal
   
 
 
-BIG(pn_startend, log_file)
+# BIG()
