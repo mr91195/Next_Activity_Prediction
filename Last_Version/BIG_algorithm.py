@@ -33,6 +33,7 @@ path_csv = './Input/csv/'+args.csv_name
 log_total = pm4py.read_xes(log_file)
 
 #This function convert the .xes file to .csv file
+#Questa funzione viene usata in dotG.py
 def convert_xes_to_csv():
     df_xes = pm4py.convert_to_dataframe(log_total) #convert il file .xes in un dataframe
     df_xes = df_xes.rename(columns={'case:concept:name': 'Case ID', 'time:timestamp': 'Timestamp'})
@@ -276,7 +277,7 @@ def ExtractInstanceGraph(trace, cr):
 # This function takes in input the list of nodes (events) and the list of edges and returns a GraphViz object. The other two inputs are view and the title of the graph. By default view is true so the function will show the graph in the output window.
 
 
-from IPython import display #ERA COMMENTATA QUESTA LINEA, DAVA ERRORE A RIGA 335 _MR_
+from IPython import display 
 from graphviz import Digraph
 
 
@@ -288,9 +289,6 @@ def viewInstanceGraph(V, W, view=True, title="Instance Graph"):
     V2.append((str(node[0]), "{0} = {1}".format(node[0],node[1])))
   for edge in W:
     W2.append(((str(edge[0][0]), "{0} = {1}".format(edge[0][0],edge[0][1])),(str(edge[1][0]), "{0} = {1}".format(edge[1][0],edge[1][1]))))
-
-  #print('V2: ', V2)
-  #print('W2: ', W2)
 
   dot = Digraph(comment=title, node_attr={'shape': 'circle'})
   for e in V2:
@@ -452,21 +450,13 @@ def ins_repair(V,W,map,insertion,V_n, ins_list, Vpos):
            elif (pos_pred) == edge1[0] and (pos_pred) == V_n[-1]:  #insertion all'ultimo nodo del grafo
              Pred.append(edge1)
              
-           
-            
 
-   #linea 17 pseudocodice
    for erem in range(len(Eremp)):
      suc = Eremp[erem] 
      suc1 = suc[1]
      if suc1 not in Succ:
        Succ.append(suc1)
-   
-   #print('Pred = ', Pred)
-   #print('Succ = ', Succ)
-   #print('Eremp = ', Eremp)
-   
-   #linea 18 pseudocodice
+
    for el in Eremp:
      if el in W:
        W.remove(el)
@@ -483,12 +473,6 @@ def ins_repair(V,W,map,insertion,V_n, ins_list, Vpos):
    
    W_num = edge_number(W)
    V_num = node_number(V)
-
-  # print('V: ', V)
-   #print('VPOS Finale: ', Vpos)
-
-   #print('++++++++++++++')
-
 
    return V,W
 
@@ -646,7 +630,6 @@ from pm4py.objects.petri_net.importer import importer as pnml_importer
 
 import graphviz
 import csv
-#import pydot
 
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 
@@ -657,17 +640,7 @@ def BIG(net_path= pn_startend, log_path = log_file, tr_start=0, tr_end=None, vie
   streaming_ev_object = xes_importer.apply(log_path, variant=xes_importer.Variants.XES_TRACE_STREAM) #file xes
   net, initial_marking, final_marking = pnml_importer.apply(net_path)
 
-
-
-  #gviz = pn_visualizer.apply(net, initial_marking, final_marking)
-  #display.display(gviz)
-  #gviz.render(filename="petri")
-  #start_time_total = time.time()
-  #cr = findCausalRelationships(net, initial_marking, final_marking)
   cr = findCausalRelationships(net)
-
-  #if view:
-   # print(cr)
   
   n = 0
 
@@ -682,14 +655,6 @@ def BIG(net_path= pn_startend, log_path = log_file, tr_start=0, tr_end=None, vie
   ins =  []
   
   start_time_total = time.time()
-
-  
-  #with open("{0}_instance_graphs.csv".format(name), 'w') as f:
-   # writer=csv.writer(f,delimiter=";")
-    #writer.writerow(['n', 'aligned to model', 'with invisible moves'])
-    #f.close()
-  
-
 
   for trace in streaming_ev_object: 
     n += 1
@@ -754,34 +719,11 @@ def BIG(net_path= pn_startend, log_path = log_file, tr_start=0, tr_end=None, vie
       if el[1]== 0:
         Vpos.remove((el[2], el[0]))
     
-
-    # print('Vpos = ', Vpos)
-
-    # print('INSERTION REPAIR')
-
     for insertion in ins:
       V,W = ins_repair(V,W,map,insertion,V_n,ins,Vpos)
 
-
-    #print('W repaired: ', W)
-
-   # if n==1500:
-     # viewInstanceGraph(V,W)
-
-
-
-    # print('DELETION REPAIR')
-    # print(d)
-
     for deletion in d:
       V,W = del_repair(V,W,map,deletion)
-
-
-    #if n==1500:
-     #viewInstanceGraph(V,W)
-     
-     
-   
 
     #aggiorna le label dei nodi in base a quanto contenuto nel mapping
 
@@ -791,21 +733,6 @@ def BIG(net_path= pn_startend, log_path = log_file, tr_start=0, tr_end=None, vie
     V_new.sort()
     W_new.sort()
 
-
-    # print('V finale: ',V_new)
-    # print('W finale: ',W_new)
-
-    #if n==7455:
-     #dot = viewInstanceGraph(V_new,W_new)
-     #dot.save()
-    
-    #dot = viewInstanceGraph(V,W)
-    #dot.save()
-
-
-
-
-
     elapsed = time.time() - start_time_total
     
 
@@ -813,16 +740,3 @@ def BIG(net_path= pn_startend, log_path = log_file, tr_start=0, tr_end=None, vie
     saveGFile(V_new, W_new, "./Input/testg/testgraph.g", time.time()-trace_start_time, sort_labels)
     saveGfinal(V_new, W_new, "./Input/g/{0}_instance_graphs.g".format(name), sort_labels)
     
-
-     
-
-    #print('------------------------------------------------------------------')
-  
-    
-
-
-  #print('Time: ', elapsed)
-  
-
-
-# BIG()

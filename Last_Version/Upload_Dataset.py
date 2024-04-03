@@ -3,7 +3,7 @@ import torch
 import config
 args=config.load()
 PATH=args.data_dir
-file_name = "complete"#"completeHelpdesk"
+file_name = "complete"
 
 
 class TraceDataset(InMemoryDataset):
@@ -16,7 +16,6 @@ class TraceDataset(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        # return ['andreaa_bpi12w_par.pt']
         return [file_name+'_par.pt']
 
 

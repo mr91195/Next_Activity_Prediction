@@ -1,13 +1,39 @@
+# dotG.py
 import gc
-import os
 from config import load
 from pm4py.util import xes_constants as xes
 import pm4py
 from pm4py.objects.log import obj as log_instance
+from os import listdir
+from os.path import isfile, join
+import sys
+
+
+
 args = load()
 
 
-# Ottiene tutti gli attributi degli eventi dal log
+"""
+Ottiene tutti gli attributi degli eventi dal log.
+
+Questa funzione prende un log di eventi e restituisce un insieme di tutti gli attributi presenti
+negli eventi del log.
+
+Args:
+    log (list): Una lista di tracce di eventi. Ogni traccia è rappresentata come una lista di eventi,
+                dove ogni evento è un dizionario che rappresenta gli attributi dell'evento.
+
+Returns:
+    set: Un insieme di tutti gli attributi presenti negli eventi del log.
+
+Examples:
+    >>> log = [
+    ...     [{'timestamp': '2022-01-01', 'activity': 'Start'}, {'timestamp': '2022-01-02', 'activity': 'End'}],
+    ...     [{'timestamp': '2022-01-03', 'activity': 'Start'}, {'timestamp': '2022-01-04', 'activity': 'End'}]
+    ... ]
+    >>> get_all_event_attributes_from_log(log)
+    {'timestamp', 'activity'}
+"""
 def get_all_event_attributes_from_log(log):
   
     all_attributes = set()
@@ -17,7 +43,31 @@ def get_all_event_attributes_from_log(log):
     if xes.DEFAULT_TRANSITION_KEY in all_attributes:
         all_attributes.remove(xes.DEFAULT_TRANSITION_KEY)
     return all_attributes
-# Ottiene tutti gli attributi delle tracce dal log
+
+
+
+
+"""
+Ottiene tutti gli attributi delle tracce dal log.
+
+Questa funzione prende un log di eventi e restituisce un insieme di tutti gli attributi presenti
+nelle tracce del log.
+
+Args:
+    log (list): Una lista di tracce di eventi. Ogni traccia è rappresentata come un oggetto Trace
+                che potrebbe contenere attributi.
+
+Returns:
+    set: Un insieme di tutti gli attributi presenti nelle tracce del log.
+
+Examples:
+    >>> log = [
+    ...     Trace(attributes={'caseid': '1', 'activity': 'Start'}),
+    ...     Trace(attributes={'caseid': '2', 'activity': 'Start'})
+    ... ]
+    >>> get_all_trace_attributes_from_log(log)
+    {'caseid', 'activity'}
+"""
 def get_all_trace_attributes_from_log(log):
     
     all_attributes = set()
@@ -27,6 +77,7 @@ def get_all_trace_attributes_from_log(log):
         all_attributes.remove(xes.DEFAULT_TRACEID_KEY)
     return all_attributes
 
+
 lista_param_tracce = ['concept:name']
 lista_param_eventi = ['concept:name', 'time:timestamp']
 
@@ -35,8 +86,7 @@ lista_param_eventi = ['concept:name', 'time:timestamp']
 #function that add information to the .g file, taking it from the event log associated
 #the information are: timestamp (by the event) and the amount-required (by the trace of the event)
 
-from os import listdir
-import sys
+
 # Path della cartella che contiene i file .xes
 path_xes_dir = "./Input/xes/"
 # Path della cartella che contiene i file .g
@@ -47,12 +97,11 @@ path_w = "./Output/Pre-cage/"
 dataset_dir = args.data_dir
 
 
-xes_list = []
-from os.path import isfile, join
-try:
-    xes_list = [join(path_xes_dir,f) for f in listdir(path_xes_dir) if isfile(join(path_xes_dir, f))]
-except:
-    sys.exit("  Error - " + path_xes_dir + " not exist!")
+# xes_list = []
+# try:
+#     xes_list = [join(path_xes_dir,f) for f in listdir(path_xes_dir) if isfile(join(path_xes_dir, f))]
+# except:
+#     sys.exit("  Error - " + path_xes_dir + " not exist!")
 
 #need to have this gfile as input, together with the xes file. is gfile result from prom? it results from a petri net?
 g_list = []
@@ -96,7 +145,6 @@ def v_case(wfile, word, index, log):
           params_tracks = params_tracks.strip()
           # ******************************************************************************************
           # 
-          # # MOD MR 
           # ho aggiunto il replace in quanto con il file di log PermitLog_SE il concept:name ha degli spazi e crea problemi quando va a leggere il merged.g
           #
           # df = pd.read_csv(path_read, sep=" ", names=names2, dtype={'name_track':str} )
@@ -160,7 +208,7 @@ from pm4py.objects.log.importer.xes import importer as xes_importer
 try:
     with open('prompt_var.txt', 'r') as f:
         nameXes = f.read().strip()
-    print('nameXes letto dal file.txt : ', nameXes)
+    print('File Xes  : ', nameXes)
 except FileNotFoundError:
     print("File 'prompt_var.txt' non trovato.")
 
@@ -232,7 +280,6 @@ with open(path_w + 'merged.g', 'w') as outfile:
 import pandas as pd
 import numpy as np
 import datetime
-#import networkx as nx
 from tensorflow.keras.utils import to_categorical
 import math
 
@@ -253,6 +300,34 @@ path_write =  f'{dataset_dir}/complete.g'
     
 '''
 
+"""
+Rinomina e unisce gli attributi relativi agli eventi e alle tracce per evitare ambiguità.
+
+Questo frammento di codice confronta gli elementi nelle liste `lista_param_eventi` e
+`lista_param_tracce`. Se trova elementi con lo stesso nome in entrambe le liste,
+aggiunge il suffisso "_event" agli elementi di `lista_param_eventi` e "_track" agli
+elementi di `lista_param_tracce`. Dopodiché, unisce queste liste in una singola lista
+`names2`, che include anche i nomi base ["e_v", "node1", "node2"]. Infine, pulisce i
+nomi degli attributi in `names2` rimuovendo eventuali prefissi identificati dal carattere ":".
+
+Parameters
+----------
+lista_param_eventi : list of str
+    La lista degli attributi relativi agli eventi.
+lista_param_tracce : list of str
+    La lista degli attributi relativi alle tracce.
+e_v_column : int, optional
+    Un valore iniziale per la colonna `e_v`, predefinito a 0.
+
+Returns
+-------
+names2 : list of str
+    Una lista unificata che include i nomi degli attributi per eventi e tracce, con
+    i necessari suffissi aggiunti per evitare ambiguità, e i nomi base ["e_v", "node1", "node2"].
+
+"""
+
+
 e_v_column = 0
 
 #Aggiunge _event agli attributi relativi agli attributi e track agli attributi relativi alle tracce
@@ -269,6 +344,37 @@ names2 = ["e_v", "node1", "node2"] + lista_param_eventi + lista_param_tracce
 for i in range(len(names2)):
   names2[i] = names2[i].split(':')[-1]
 
+
+"""
+Legge e prepara un DataFrame da un file .g, effettuando la conversione e manipolazione dei timestamp.
+
+Questo frammento di codice esegue la lettura di un file .g specificato dal percorso `path_read`, selezionando
+solo le colonne definite in `names2`. Successivamente, modifica il formato dei timestamp, li sposta in una nuova
+colonna 'finish' e prepara un DataFrame aggiuntivo per le operazioni di feature engineering. Infine, gestisce i
+valori mancanti e prepara il DataFrame per l'analisi.
+
+Parameters
+----------
+path_read : str
+    Il percorso del file da leggere.
+names2 : list of str
+    Nomi delle colonne da selezionare durante la lettura del file.
+
+Steps
+-----
+1. Lettura del file: Utilizza `pd.read_csv` per leggere il file, specificando separatori, nomi delle colonne
+   e tipi di dati.
+2. Manipolazione dei timestamp: Converte i timestamp in formato datetime con fuso orario UTC e sposta i valori
+   in una nuova colonna 'finish'. Rimuove la colonna 'timestamp' originale.
+3. Preparazione del DataFrame `g_dataframe`: Inizializza `g_dataframe` con le stesse colonne di `df` e riempie
+   con i dati di `df`, gestendo i valori NaN.
+4. Gestione della colonna 'start': Crea e manipola una colonna 'start' basata sui valori di 'finish' e condizioni
+   specifiche.
+5. Pulizia e finalizzazione: Rimuove i DataFrame temporanei e gestisce i valori mancanti e non validi nelle colonne
+   'start' e 'finish'.
+6. Logging: Scrive i log delle operazioni svolte in un file di testo per monitorare l'avanzamento del processo.
+
+"""
 df = pd.read_csv(path_read, sep=" ", names=names2, dtype={'name_track':str} ) #accede alle variabili lista_param_eventi e lista_param_tracce dello script add_info_g_file.py ////////////// legge il .g file prendendo solo le colonne presenti nella variabile names2
 df.timestamp = df.timestamp.apply(lambda x: str(x)[:18])
 
@@ -375,8 +481,9 @@ def convert_xes_to_csv():
     df_xes.to_csv(path_csv, index=False)
     return df_xes
 
-
 targetframe = convert_xes_to_csv()
+
+
 col_name = 'Case ID'
 if col_name in targetframe.columns:
     targetframe[col_name] = targetframe[col_name].astype(str)
@@ -421,7 +528,7 @@ del_col_file.flush()
 # 
 # 
 # 
-#                 # GUI
+#                 # GUI/CLI
 #             
 # 
 # #
@@ -451,7 +558,8 @@ del_col_file.write("Colonne che non sono state selezionate:\n")
 
 opzione_scelta = None
 train_rete = None
-
+# La scelta dell'if serve per dare la possibilità o no all'utente di scegliere 'next activity prediction' o regressione,
+# la scelta della regressione è possibile se e solo se è presente il parametro/colonna 'Days too late'
 if 'Days too late' in selected_columns:
   selected_columns.remove('Days too late')
   regression = True
@@ -501,9 +609,37 @@ sizes=np.array(g_dataframe.groupby('name_track',sort=False,as_index=False).size(
 
 idxss=list(np.where(~g_dataframe['name_track'].isnull()))[0] #Trova gli indici delle righe in cui la colonna 'name_track' di g_dataframe non è nulla.
 
+
+
+
+"""
+Processa e aggiunge colonne selezionate da un dataframe di origine a un dataframe di destinazione,
+distinguendo tra attributi categorici e numerici. Gli attributi numerici vengono normalizzati prima
+dell'aggiunta. 
+
+Parameters
+----------
+selected_columns : list of str
+    Lista dei nomi delle colonne selezionate da processare e aggiungere al dataframe di destinazione.
+targetframe : pandas.DataFrame
+    Il dataframe di origine da cui vengono prelevati i valori delle colonne selezionate.
+g_dataframe : pandas.DataFrame
+    Il dataframe di destinazione a cui vengono aggiunti i valori delle colonne selezionate.
+sizes : list of int
+    Lista che definisce il numero di volte per cui ciascun valore nella colonna selezionata deve essere ripetuto.
+print_file : _io.TextIOWrapper
+    File aperto in modalità di scrittura su cui vengono scritti i log delle operazioni eseguite.
+idxss : pandas.Index
+    L'indice che definisce l'ordine e la posizione dei valori da inserire nel dataframe di destinazione.
+
+Notes
+-----
+Gli attributi categorici e numerici vengono identificati tramite tentativo di conversione in float.
+Gli attributi che non possono essere convertiti vengono considerati categorici e aggiunti alla lista
+`attCategorici`, mentre quelli convertibili sono considerati numerici e aggiunti alla lista `attNumerici`.
+
+"""
 from sklearn.preprocessing import MinMaxScaler
-
-
 
 attCategorici = []
 attNumerici = []
@@ -593,6 +729,23 @@ w.writelines(tmp)
 w.close()
 
 
+"""
+Funzione usata in 'creazione_dataset_next_activity.py' per poter usare il dataframe, attNumerici, attCategorici e opzione_scelta.
+
+
+Returns
+-------
+df : pandas.DataFrame
+    Il dataframe modificato, ottenuto da `g_dataframe`, con la sostituzione dei valori nella colonna 'e_v'
+    e la rimozione dell'ultima colonna.
+attNumerici : list of str
+    Una lista che contiene i nomi delle colonne con attributi numerici identificati nella fase di elaborazione.
+attCategorici : list of str
+    Una lista che contiene i nomi delle colonne con attributi categorici identificati nella fase di elaborazione.
+opzione_scelta : var
+    Una variabile che rappresenta un'opzione scelta durante l'elaborazione, il cui tipo e valore dipendono
+    dal contesto specifico di utilizzo della funzione.
+"""
 
 def get_gDataFrame():
   df = g_dataframe

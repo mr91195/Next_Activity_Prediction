@@ -1,3 +1,5 @@
+# Training.py
+
 # %load_ext cudf.pandas
 # ##########
 # ****************************** https://docs.rapids.ai/api/cudf/stable/cudf_pandas/ *******************************
@@ -6,9 +8,43 @@
 # 
 # OR USE THE COMMAND LINE :
 # 
-# python -m cudf.pandas modificata_dgcnn_70_30_dataset_parallelo_Manou_server.py
+# python -m cudf.pandas Training.py
+
+
 from CLI_path_dataset import select_paths_dataset_cli
 import os
+from sklearn.metrics import accuracy_score, f1_score
+import torch
+import pandas as pd
+import numpy as np
+import config
+import torch.nn.functional as F
+from torch.nn import Linear, Conv1d
+from torch_geometric.nn import SAGEConv, SortAggregation
+from torch_geometric.loader import DataLoader
+import torch_geometric.datasets
+from torch_geometric import utils
+import matplotlib.pyplot as plt
+import itertools
+from Upload_Dataset import TraceDataset # Questa classe è stata modificata appositamente per non generare il dataset
+import time
+import random
+import shutil
+
+
+
+"""
+Verifica i tipi di file del dataset e li copia nei percorsi di destinazione appropriati.
+
+Questa funzione controlla se i file del dataset e i file di testo associati hanno le estensioni corrette ('.pt' per il dataset,
+'.txt' per i file di testo) e, in tal caso, li copia nei percorsi di destinazione specificati. La funzione gestisce anche
+le situazioni in cui i file sono già nei percorsi di destinazione desiderati o se si verificano errori durante la copia.
+
+Dopo l'esecuzione, i file saranno stati copiati nei percorsi di destinazione se soddisfano le condizioni specificate,
+altrimenti verranno stampati messaggi appropriati a console.
+"""
+
+
 dataset_path, path_txt_par, path_txt_std = select_paths_dataset_cli()  # Seleziona i percorsi dei file del dataset
 
 # Verifica il tipo di file
@@ -49,48 +85,31 @@ if (file_extension_dataset == '.pt') & (file_extension_txt_par == '.txt') & (fil
         
 
 
-from sklearn.metrics import accuracy_score, f1_score
-import torch
-import pandas as pd
-import numpy as np
-import config
-import torch.nn.functional as F
-from torch.nn import Linear, Conv1d
-from torch_geometric.nn import SAGEConv, SortAggregation
-from torch_geometric.loader import DataLoader
-import torch_geometric.datasets
-from torch_geometric import utils
-import matplotlib.pyplot as plt
-plt.ioff() 
-import itertools
-from Upload_Dataset import TraceDataset
-import time
-import random
-import shutil
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+plt.ioff() # Blocca la visualizzazione a schermo dei grafici (non li mostro in quanto salvo direttamente quelli che mi servono)
 
 # Inizializzo diverse variabili 
-
 args=config.load()
 file_name = "complete_par"
 
 model = None
 optimizer = None
 
-chosen_data = ""  # "/bpi12"
-k = 7  # 15 #30
-#testa con batch_size maggiori  32 - 128 ************************************************************************************
-batch_size = 64  # 32
 dropout = 0.1  # 0,5 #0.05
-lr = 0.01  # 0.01  #0.1
-num_ly = 3  # 2 #5
-# ************
-
-# per = 67  # percentuale per lo split del dataset tra train e test NON MODIFICARE
 delta_epoch = 100  # epoche di addestramento
-#add early stopping 
 patience=10
 triggertimes=0
 # ************
@@ -115,8 +134,6 @@ results_df = pd.DataFrame(columns=['Num_Prefix', 'y_pred', 'y_true'])
 """
 Dal file target.txt creato in precedenza si crea un dizionario con il valore di predizione assegnato ad ogni activity da predirre
 """
-
-
 # dizionario: chiave=target, valore=indice progressivo (da 0)
 def dictarget():
     target_std = {}
@@ -142,22 +159,97 @@ def dictarget():
     return target_std, target_par
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 """classe Pytorch per la creazione o lettura del dataset per allenare la rete.
 
-il file che contiene il dataset sarà creato all'interno della cartella process, questa cartella viene creata all'interno della cartella dataset precedentemente creata nel drive. Il nome del file creato sarà quello passato dal metodo processed_file_names della classe.
+il file che contiene il dataset sarà creato all'interno della cartella process, questa cartella viene creata all'interno della cartella dataset precedentemente creata nella cartell Output.
+./Output/dataset/processed
+
+Il nome del file creato sarà quello passato dal metodo processed_file_names creato in creazione_dataset_next_activity.py
 
 Quando la classe viene richiamata prima controlla se all'interno della cartella process è presente il file con il nome passato nel metodo processed_file_names, se presente andrà a leggere il file, se non presente andrà ad attivare il metodo process per la creazione di un nuovo dataset e gli darà il nome passato tramite il metodo processed_file_names.
 
-In questo script viene utilizzato per la lettura del dataset, si consiglia di controllare che il dataset sian presente all'interno della cartella process e inserire all'interno del metodo processed_file_names il nome del dataset da voler utilizzare per allenare la rete.
+In questo script viene utilizzato per la lettura del dataset, si consiglia di controllare che il dataset sia presente all'interno della cartella process e inserire all'interno del metodo processed_file_names il nome del dataset da voler utilizzare per allenare la rete.
+
+Il nome del file è preimpostato  a 'complete'
 """
-
-
 
 """
 definizione della DGCNN
 presa dagli esempi di pythrch geometric al link https://github.com/rusty1s/pytorch_geometric/blob/master/benchmark/kernel/sort_pool.py
 """
 
+"""
+Un modulo PyTorch che implementa il modello SortPool per la classificazione di grafi.
+
+SortPool è una tecnica di pooling per grafi che ordina i nodi in base a una caratteristica (ad esempio, le loro
+embedding) prima di selezionare i primi k nodi per formare un grafo fisso di dimensione k. Questo permette di applicare
+con successo metodi di convoluzione standard su grafi di dimensione variabile. La classe utilizza convoluzioni spaziali
+sui grafi (`SAGEConv`) e convoluzione 1D standard (`Conv1d`) per l'elaborazione dei dati del grafo.
+
+Parameters
+----------
+dataset : torch_geometric.data.Dataset
+    Il dataset contenente i grafi da classificare. Deve fornire `num_features` e `num_classes`.
+num_layers : int
+    Il numero di layer di convoluzione sui grafi (`SAGEConv`) da utilizzare.
+hidden : int
+    Il numero di feature nascoste in ciascun layer di convoluzione.
+k : int
+    Il numero di nodi da mantenere dopo l'operazione di SortPool. NOTA: tipicamente impostato tra 2 e 3 per questo modello.
+
+Methods
+-------
+reset_parameters()
+    Re-inizializza i parametri di tutti i moduli (layer) del modello.
+forward(data, k)
+    Definisce il passaggio in avanti del modello. Utilizza `SortAggregation` per eseguire il pooling basato su ordinamento,
+    seguito da una serie di convoluzioni e trasformazioni lineari.
+
+Attributes
+----------
+conv1 : torch.nn.Module
+    Il primo layer di convoluzione sui grafi.
+convs : torch.nn.ModuleList
+    Una lista di layer di convoluzione sui grafi aggiuntivi.
+conv1d : torch.nn.Conv1d
+    Un layer di convoluzione 1D per elaborare le caratteristiche aggregati.
+lin1 : torch.nn.Linear
+    Un layer lineare per trasformazioni aggiuntive post-convoluzione.
+lin2 : torch.nn.Linear
+    Il layer lineare finale per la classificazione.
+
+"""
 
 class SortPool(torch.nn.Module):
 
@@ -207,8 +299,32 @@ class SortPool(torch.nn.Module):
         return self.__class__.__name__
 
 
-"""divisione del dataset in train e test in base alla percentuale passata e bilanciata rispetto al target"""
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""divisione del dataset in train e test in base alla percentuale passata e bilanciata rispetto al target"""
 
 def Split_Target(G, per):
     dict = {}
@@ -234,7 +350,6 @@ def Split_Target(G, per):
 
 
 """metodi per salvare le matrici di confusione, salva sia nel formato di tensore pytorch sia su file in formato txt"""
-
 
 def printcfile_test(cmt, epoch):
     if not os.path.exists('./IMG'):
@@ -274,6 +389,9 @@ G = TraceDataset()  # inizializzazione del dataset
 
 
 # Funzione per la selezione di quali prefix-number utilizzare per allenare la rete e scelta della percentuale di train/test
+# Analizza un dataset di grafi per determinare il numero di occorrenze di ciascun numero di nodi (prefissi) tra i grafi.
+# Il numero di occorrenze viene dato in input a select_range_and_split_cli(), in modo tale che l'utente puo visualizzare come diminuiscono
+# il numero di occorrenze e sceglienre quale range di prefissi usare per il train
 def selectParameters():
     prefix_occurrences = {}
     print(G.indices)    
@@ -305,6 +423,7 @@ print(f"Percentuale di split train/test: {percentuale_split}%")
 print(f"Search Grid: {'Attivata' if search_grid else 'Disattivata'}")
 from torch_geometric.data import Data
 
+# In base al numero di prefissi scelti dall'utente viene fatto un filtraggio sull'intero dataset
 def filtra_grafi_per_prefissi(G, min_prefissi, max_prefissi):
     indici_validi = []
     in_tot = 0
@@ -332,15 +451,15 @@ def filtra_grafi_per_prefissi(G, min_prefissi, max_prefissi):
 
 G_filtrato = filtra_grafi_per_prefissi(G, min_prefissi_selezionato, max_prefissi_selezionato)
 
-per = percentuale_split
 
-train, test = Split_Target(G_filtrato, per)  # divisione del dataset tra train e test
+train, test = Split_Target(G_filtrato, percentuale_split)  # divisione del dataset tra train e test
 random.shuffle(train)
 random.shuffle(test)
 
-
-train_loader = DataLoader(train, batch_size=batch_size)  # definizione delle variabili che conterranno in dataset di train o test per l'allenamento della rete
-test_loader = DataLoader(test, batch_size=1)  # batch_size serve per l'allenamento della rete quando si hanno grafi di dimensione e struttura variabile
+train_loader = DataLoader(train, batch_size=args.batch_size)  # definizione delle variabili che conterranno in dataset di train o test per l'allenamento della rete
+test_loader = DataLoader(test, batch_size=1)  # qui è impostato ad 1 il batch_size in modo tale che posso ricavarmi i singoli risultati 
+                                                # per poi graficare l'andamento in funzione della lunghezza dei prefissi
+                                                # vedi def test(loader, results_df, epoch, k):
 criterion = torch.nn.CrossEntropyLoss()  # definizione del criterio per l'allenamento della rete
 
 
@@ -357,7 +476,52 @@ def calculate_metrics(df):
 
 
 
-def train():  # funzione di addestramento della rete
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+Addestra il modello di rete neurale sul dataset di training.
+
+Questa funzione esegue un'epoca di addestramento del modello di rete neurale, utilizzando i dati forniti dal `train_loader`.
+Effettua il forward pass per calcolare le predizioni, calcola la loss utilizzando il criterio specificato, esegue il backward
+pass per aggiornare i pesi del modello, e calcola la loss media e l'accuracy basandosi sui risultati ottenuti. Infine,
+costruisce una matrice di confusione che mostra le performance di classificazione del modello.
+
+Returns
+-------
+running_loss : float
+    La loss totale accumulata durante l'epoca, normalizzata sul numero totale di grafi nel dataset di training.
+running_corrects : int
+    Il numero totale di predizioni corrette fatte dal modello durante l'epoca.
+cmt : torch.Tensor
+    Una matrice di confusione delle dimensioni [num_classes, num_classes] che mostra le performance di classificazione
+    del modello su tutto il dataset di training durante l'epoca.
+"""
+
+def train(k):  # funzione di addestramento della rete
     global model
     model.train(True)  # il true serve per indicare che si devono addestrare i paramentri del modello
     running_loss = 0.0
@@ -387,6 +551,55 @@ def train():  # funzione di addestramento della rete
         tl, pl = p.tolist()
         cmt[int(tl), int(pl)] = cmt[int(tl), int(pl)] + 1
     return running_loss, running_corrects, cmt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+Valuta il modello su un dataset di test e calcola metriche di prestazione.
+
+Questa funzione esegue il test del modello di rete neurale sul dataset fornito tramite `loader`, calcolando la loss
+media e l'accuracy complessive. Inoltre, raggruppa i risultati per il numero di prefissi (numero di nodi unici) nel
+dataset di test e calcola le metriche di prestazione per ciascun gruppo. Salva un riepilogo dei risultati e un grafico
+dell'andamento delle metriche in funzione del numero di prefissi in file separati.
+
+Parameters
+----------
+loader : DataLoader
+    Il caricatore di dati per il dataset di test.
+results_df : pandas.DataFrame
+    Un dataframe pandas per raccogliere i risultati delle predizioni.
+epoch : int
+    Il numero dell'epoca corrente, utilizzato per etichettare i file di output.
+k : int
+    Il numero di nodi da mantenere dopo l'operazione di SortPool durante il testing.
+
+Returns
+-------
+running_loss : float
+    La loss totale accumulata durante il test, normalizzata sul numero totale di grafi nel dataset di test.
+running_corrects : int
+    Il numero totale di predizioni corrette fatte dal modello durante il test.
+cmt : torch.Tensor
+    Una matrice di confusione delle dimensioni [num_classes, num_classes] che mostra le performance di classificazione
+    del modello su tutto il dataset di test.
+"""
 
 def test(loader, results_df, epoch, k):  # funzione per il test della rete
     model.train(False)  # passando il false dico al programma di non addestrare il modello
@@ -465,10 +678,9 @@ def test(loader, results_df, epoch, k):  # funzione per il test della rete
     # Imposta lo sfondo bianco e rimuovi la griglia
     plt.gca().set_facecolor('white')
     plt.grid(False)
-
     
     plt.savefig(
-            './AndamentoF1Score/' + str(epoch)+ '_PrefixF1Score.png')  # salva l'immagini della matrice di confusione
+            './Output/AndamentoPrefissi/' + str(epoch)+ '_Epoch.png')  # salva l'immagini della matrice di confusione
     
     
     stacked = torch.stack((ystack_std, all_preds),
@@ -482,9 +694,33 @@ def test(loader, results_df, epoch, k):  # funzione per il test della rete
     return running_loss, running_corrects, cmt
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def plot_confusion_matrix(cm, title, normalize=False,
                           cmap=plt.cm.Blues):  # funzione che serve per creare l'immagine della matrice di confusione
-    # input=open('target.txt')
     input = open('./Output/dataset/target_std.txt')
     classes = []
 
@@ -500,7 +736,6 @@ def plot_confusion_matrix(cm, title, normalize=False,
         # print('Confusion matrix, without normalization')
         pass
 
-    # print(cm)
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
     plt.colorbar()
@@ -555,8 +790,6 @@ def resume_best_loss_train(
         return best_loss_train
 
 
-
-# #modificare con il checkpoint da cui far partire la rete e modificare con il path in cui si trova
 if not os.path.exists("./checkpoint_rete"):
     os.mkdir("./checkpoint_rete")
 if not os.path.exists("./checkpoint_rete/best_test") or not os.path.exists("./checkpoint_rete/best_train"): 
@@ -570,9 +803,64 @@ if os.path.isdir("./checkpoint_rete"):
 if not os.path.exists("./log"): 
   os.mkdir("./log")
 if os.path.isdir("./log"):
-  file_log = open('./log/log_split_target_'+str(per)+'_'+str(100-per)+'_epoch_'+str(start_epoch)+'_'+str(start_epoch+delta_epoch-1)+'.txt', 'w')    #apre un file per il salvataggio del log della rete, per ogni epoca salva i valori di accuracy edi loss per il train ed il test
+  file_log = open('./log/log_split_target_'+str(percentuale_split)+'_'+str(100-percentuale_split)+'_epoch_'+str(start_epoch)+'_'+str(start_epoch+delta_epoch-1)+'.txt', 'w')    #apre un file per il salvataggio del log della rete, per ogni epoca salva i valori di accuracy edi loss per il train ed il test
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+Esegue un ciclo completo di addestramento e test di un modello di rete neurale per un numero specificato di epoche.
+
+Parametri
+---------
+num_layers : int
+    Numero di layer di convoluzione nel modello.
+hidden : int
+    Numero di unità nascoste in ciascun layer di convoluzione.
+k : int
+    Il parametro k utilizzato nel modello SortPool per selezionare i top-k nodi.
+lr : float
+    Il tasso di apprendimento per l'ottimizzatore Adam.
+
+Descrizione
+-----------
+La funzione inizia stampando una tabella delle configurazioni iniziali del modello. In seguito, procede
+con l'addestramento del modello su un dataset di training per un numero predefinito di epoche (`delta_epoch`).
+Dopo ogni epoca, viene eseguita una fase di test sul dataset di test per valutare le prestazioni del modello.
+Le metriche di performance includono la loss media e l'accuracy sia per il dataset di training che di test.
+Inoltre, dopo ogni epoca, vengono generate e salvate la matrice di confusione e le immagini dei grafici delle
+metriche di performance. La funzione supporta anche il salvataggio dello stato del modello al miglioramento delle
+performance e implementa un meccanismo di early stopping basato su una soglia di `patience`.
+
+Note
+----
+La funzione utilizza variabili globali per `model`, `optimizer`, e altre variabili di configurazione come `delta_epoch`
+e `patience` che sono definite nel contesto globale dello script prima di invocare questa funzione.
+"""
 
 def run_epochs(num_layers, hidden, k, lr):
 
@@ -592,8 +880,6 @@ def run_epochs(num_layers, hidden, k, lr):
     best_outcome_train=[]
     best_outcome_test=[]
 
-
-#(dataset=G, num_layers=num_layers, hidden=hidden, m=k
     global model
     global optimizer
     model = SortPool(dataset=G, num_layers=num_layers, hidden=hidden, k=k)  # definizione del modello della rete
@@ -601,11 +887,11 @@ def run_epochs(num_layers, hidden, k, lr):
                                 lr=lr)  # definizione della variabile dove vengono salvati i parametri di ottimizzazione della rete
 
     for epoch in range(start_epoch, start_epoch + delta_epoch):  # ciclo delle epoche di addestramento
-        train_loss, train_acc, cmt_train = train()  # avvia il training della rete
+        train_loss, train_acc, cmt_train = train(k=k)  # avvia il training della rete
         
-        #Path dove salvo le metriche di valutazione F1 in funzione dei prefissi
-        if not os.path.exists("./AndamentoF1Score/"):
-            os.mkdir("./AndamentoF1Score/")
+        #Path dove salvo le metriche di valutazione F1 e Accuracy in funzione dei prefissi
+        if not os.path.exists("./Output/AndamentoPrefissi"):
+            os.mkdir("./Output/AndamentoPrefissi")
         test_loss, test_acc, cmt_test = test(test_loader, results_df, epoch, k)  # avvia il test della rete
 
         lossTr.append(train_loss / len(
@@ -628,13 +914,13 @@ def run_epochs(num_layers, hidden, k, lr):
             os.mkdir("./Immagini/best_train")
         if os.path.isdir("./Immagini/cm_epoch"):
             plt.savefig(
-                './Immagini/cm_epoch/confusion_matrix_split_target_' + str(per) + '_' + str(100 - per) + '_epoch_' + str(
+                './Immagini/cm_epoch/confusion_matrix_split_target_' + str(percentuale_split) + '_' + str(100 - percentuale_split) + '_epoch_' + str(
                     epoch) + 'test.png')  # salva l'immagini della matrice di confusione
             plt.figure(figsize=(15, 15))
             plot_confusion_matrix(cmt_train, "Confusion matrix TRAIN epoch : " + str(epoch))
             # modificare con il path dove si vogliono salvare le immagini della matrice di confusione
             plt.savefig(
-                './Immagini/cm_epoch/confusion_matrix_split_target_' + str(per) + '_' + str(100 - per) + '_epoch_' + str(
+                './Immagini/cm_epoch/confusion_matrix_split_target_' + str(percentuale_split) + '_' + str(100 - percentuale_split) + '_epoch_' + str(
                     epoch) + 'train.png')
             # print(f'Epoch: {epoch:03d}, Train Acc: {(train_acc/len(train_loader.dataset)):.4f}, Test Acc: {(test_acc/len(test_loader.dataset)):.4f}, Train Loss: {(train_loss/len(train_loader.dataset)):.4f}, Test Loss: {(test_loss/len(test_loader.dataset)):.4f} ')
             file_log.write(
@@ -702,8 +988,42 @@ def run_epochs(num_layers, hidden, k, lr):
             'opt': optimizer.state_dict()}  # creo un dizionario per salvare il checkpoint della rete
     # modificare con il path dove si vogliono salvare i checkpoint
     torch.save(state, './checkpoint_rete/checkpoint_' + str(
-        start_epoch + delta_epoch - 1) + '.pth.tar')  # salvol il ceckpoint della rete
+        start_epoch + delta_epoch - 1) + '.pth.tar')  # salvo il ceckpoint della rete
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+Esegue l'addestramento del modello con o senza grid search in base alla configurazione.
+
+Se la grid search non è richiesta (`search_grid` è False), la funzione avvia un ciclo di addestramento
+utilizzando i parametri specificati. In caso contrario, esegue una ricerca esaustiva dei parametri,
+iterando su combinazioni di `k`, `num_layers` e `lr` (tasso di apprendimento) per trovare la configurazione ottimale.
+
+Note
+----
+Durante la grid search, le combinazioni di parametri per le quali `k` è minore del numero di layer (`num_layers`)
+sono considerate non valide e vengono saltate. Questo è fatto per evitare configurazioni del modello non praticabili.
+Ogni combinazione valida comporta la creazione di una struttura di cartelle dedicata per i risultati dell'addestramento,
+facilitando l'organizzazione e la revisione dei risultati.
+"""
 
 
 
@@ -725,7 +1045,7 @@ else:
                     continue
 
                 # Creazione di una cartella unica per questa combinazione
-                combination_folder = f"results_k{k}_layers{num_layers}_lr{lr}"
+                combination_folder = f"./Output/SearchGrid_k={k}_NumLayers={num_layers}_Lr={lr}"
                 os.makedirs(combination_folder, exist_ok=True)
                 os.makedirs(combination_folder+ "/Immagini/cm_epoch/", exist_ok=True)
                 os.makedirs(combination_folder+ "/Immagini/best_train/", exist_ok=True)
